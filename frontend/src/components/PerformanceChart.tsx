@@ -1,20 +1,29 @@
-import { useMemo } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
+import  { useMemo } from "react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+} from "recharts";
 
+// Requested line colors: orange, blue, red, black, green (then fallbacks)
 const COLORS = [
-  "#3366CC", "#DC3912", "#FF9900", "#109618", "#990099",
-  "#0099C6", "#DD4477", "#66AA00", "#B82E2E", "#316395",
-  "#994499", "#22AA99", "#AAAA11", "#6633CC", "#E67300",
-  "#8B0707", "#651067", "#329262", "#5574A6", "#3B3EAC",
+  "#FF9900", // orange
+  "#3366CC", // blue
+  "#DC3912", // red
+  "#000000", // black
+  "#109618", // green
+
+
 ];
 
-type Props = { data: any[] };
-
-export default function PerformanceChart({ data }: Props) {
+export default function PixelPerformanceChart({ data }: { data: any[] }) {
   const { chartData, seriesNames } = useMemo(() => {
-    if (!Array.isArray(data) || data.length === 0) {
-      return { chartData: [], seriesNames: [] as string[] };
-    }
+    if (!Array.isArray(data) || data.length === 0) return { chartData: [], seriesNames: [] };
 
     const points = data
       .map((item: any) => ({
@@ -61,40 +70,57 @@ export default function PerformanceChart({ data }: Props) {
   }, [data]);
 
   return (
-    <div className="w-full h-[56vh] max-w-[1200px]">
-      <LineChart
-        data={chartData}
-        width={1200}
-        height={600}
-        margin={{ top: 8, right: 24, bottom: 8, left: 0 }}
-        className="w-full h-full"
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis
-          dataKey="t"
-          type="number"
-          domain={["auto", "auto"]}
-          tickFormatter={(v: number) => new Date(v).toLocaleTimeString()}
-          tick={{ fontSize: 12 }}
-        />
-        <YAxis tick={{ fontSize: 12 }} domain={[600, 1500]} ticks={[600, 1000, 1500]} />
-        <Tooltip labelFormatter={(label: any) => new Date(label).toLocaleString()} />
-        <Legend />
-        {seriesNames.map((name, idx) => (
-          <Line
-            key={name}
-            type="basis"
-            dataKey={name}
-            dot={false}
-            strokeWidth={2}
-            stroke={COLORS[idx % COLORS.length]}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            isAnimationActive={false}
-            connectNulls
-          />
-        ))}
-      </LineChart>
+    <div className="w-full h-64 sm:h-80 md:h-96 lg:h-[480px] p-4 bg-[#fbfaf8] border-2 border-black rounded shadow-sm font-mono">
+      <div className="w-full h-full border-2 border-black bg-white overflow-hidden">
+        {/* Top pixel header */}
+        <div className="py-2 px-3 border-b-2 border-black flex items-center justify-between bg-[#fffefb]">
+          <div className="uppercase text-xs md:text-sm tracking-tight">Performance Metrics</div>
+          <div className="text-[11px] text-gray-600">chart</div>
+        </div>
+
+        {/* Chart */}
+        <div className="w-full h-[calc(100%-44px)] p-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 6, right: 18, bottom: 6, left: 6 }}>
+              {/* pixel-like grid lines */}
+              <CartesianGrid stroke="#e6e6e6" strokeDasharray="2 2" />
+
+              <XAxis
+                dataKey="t"
+                type="number"
+                domain={["auto", "auto"]}
+                tickFormatter={(v: number) => new Date(v).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                tick={{ fontSize: 11, fontFamily: "monospace" }}
+                tickLine={false}
+                axisLine={{ stroke: "#000" }}
+              />
+
+              <YAxis tick={{ fontSize: 11, fontFamily: "monospace" }} domain={["dataMin", "dataMax"]} />
+
+              <Tooltip
+                labelFormatter={(label: any) => new Date(label).toLocaleString("en-IN")}
+                formatter={(value: any) => (typeof value === "number" ? Number(value).toFixed(2) : value)}
+              />
+
+              <Legend verticalAlign="top" height={28} wrapperStyle={{ fontFamily: 'monospace', fontSize: 12 }} />
+
+              {seriesNames.map((name: string, idx: number) => (
+                <Line
+                  key={name}
+                  type="monotone"
+                  dataKey={name}
+                  dot={false}
+                  strokeWidth={2}
+                  stroke={COLORS[idx % COLORS.length]}
+                  strokeLinecap="square"
+                  isAnimationActive={false}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }
