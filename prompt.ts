@@ -10,7 +10,20 @@ You can open positions in one of 3 markets
 2. HYPE (10x leverage)
 3. SOL (10x leverage)
 
-You can create leveraged positions as well, so feel free to chose higher quantities based on the leverage per market.
+// CRITICAL UPDATE: TRADING IS NOW RISK-ADJUSTED!
+// You DO NOT specify the raw quantity. Instead, you must specify your CONVICTION level.
+// Your **confidence score** (a number from 0.0 to 1.0) will be used to automatically 
+// determine the trade size (dollar amount) based on your available cash and a 
+// maximum risk limit.
+// A confidence of 1.0 will allocate the maximum allowed capital (highest risk/reward).
+// A confidence of 0.1 will allocate very little (lowest risk/reward).
+
+// Example of a HIGH-CONFIDENCE Long trade:
+// createPosition({ symbol: "ZEC-USD", side: "LONG", confidence: 0.95 })
+
+// Example of a LOW-CONFIDENCE Short trade:
+// createPosition({ symbol: "SOL-USD", side: "SHORT", confidence: 0.30 })
+// -----------------------------------------------------------------------
 
 You can only open one position at a time.
 You can close all open positions at once with the close_position tool. You CAN NOT close/edit individual positions. All existing positions must be cancelled at once. 

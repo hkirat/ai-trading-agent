@@ -12,6 +12,28 @@ import { PrismaClient, ToolCallType } from './generated/prisma/client';
 import { getPortfolio } from './getPortfolio';
 const prisma = new PrismaClient();
 
+// --- START: NEW DYNAMIC SIZING LOGIC ---
+
+// Define the maximum percentage of available capital to allocate at 1.0 confidence.
+// This sets your maximum risk per trade. (e.g., 20% of available cash)
+const MAX_TRADE_ALLOCATION_PERCENT = 0.20; 
+
+
+const calculateTradeSize = (availableCash: number, confidence: number): number => {
+    // Ensure confidence is clamped between 0.0 and 1.0 for safety
+    const clampedConfidence = Math.max(0.0, Math.min(1.0, confidence));
+
+    // Calculate maximum dollar amount to allocate (Max risk per trade)
+    const maxDollarAllocation = availableCash * MAX_TRADE_ALLOCATION_PERCENT;
+
+    // Linearly scale the allocation based on confidence
+    const dollarAllocation = maxDollarAllocation * clampedConfidence;
+
+    return dollarAllocation; 
+};
+
+// --- END: NEW DYNAMIC SIZING LOGIC ---
+
 export const invokeAgent = async (account: Account) => {
   const openrouter = createOpenRouter({
     apiKey: process.env['OPENROUTER_API_KEY'] ?? '',
@@ -38,6 +60,8 @@ export const invokeAgent = async (account: Account) => {
   }))
   
   const portfolio = await getPortfolio(account);
+  // Safely parse available cash as a number for use in dynamic sizing
+  const availableCash = parseFloat(portfolio.available); 
 
   const openPositions = await getOpenPositions(account.apiKey, account.accountIndex);
   const modelInvocation = await prisma.invocations.create({
@@ -61,24 +85,38 @@ export const invokeAgent = async (account: Account) => {
     prompt: enrichedPrompt,
     tools: {
       createPosition: {
-        description: 'Open a position in the given market',
+        description: 'Open a position in the given market. The AI must provide a confidence level for the size.',
         inputSchema: z.object({
           symbol: z.enum(Object.keys(MARKETS)).describe('The symbol to open the position at'),
           side: z.enum(["LONG", "SHORT"]),
-          quantity: z.number().describe('The quantity of the position to open.'),
+          confidence: z.number().min(0.0).max(1.0).describe('AI confidence score (0.0 to 1.0). Used to calculate position size.'),
         }),
-        execute: async ({ symbol, side, quantity }) => {
-          // Do the opposite of what the AI infers
-          side = side === "LONG" ? "SHORT" : "LONG";
-          await createPosition(account, symbol, side, quantity);
+        execute: async ({ symbol, side, confidence }) => {
+          
+          // Calculate the dollar amount to trade based on available cash and confidence
+          const tradeAmountDollars = calculateTradeSize(availableCash, confidence);
+
+          // We pass the dollar amount. createPosition.ts will convert this to units.
+          const quantityToTrade = tradeAmountDollars; 
+          
+          console.log(`[Trade Sizing] Calculated size: $${tradeAmountDollars.toFixed(2)} based on confidence: ${confidence}`);
+
+          // Note: Removed the original line that reversed the side: `side = side === "LONG" ? "SHORT" : "LONG";`
+          await createPosition(account, symbol, side, quantityToTrade);
+          
           await prisma.toolCalls.create({
             data: {
               invocationId: modelInvocation.id,
               toolCallType: ToolCallType.CREATE_POSITION,
-              metadata: JSON.stringify({ symbol, side, quantity }),
+              metadata: JSON.stringify({ 
+                symbol, 
+                side, 
+                confidence: confidence, // Log the AI's confidence
+                calculatedTradeAmount: tradeAmountDollars.toFixed(2) // Log the size used
+              }),
             },
           });
-          return `Position opened successfully for ${quantity} ${symbol}`;
+          return `Position opened successfully. Size used: $${tradeAmountDollars.toFixed(2)} (Confidence: ${confidence}).`;
         },
       },
       closeAllPosition: {
@@ -103,7 +141,7 @@ export const invokeAgent = async (account: Account) => {
   await response.consumeStream();
   await prisma.models.update({
     where: { id: account.id },
-    data: { invocationCount: { increment: 1 } },
+    data: { invocationCount: { increment: 1 } } ,
   });
   await prisma.invocations.update({
     where: { id: modelInvocation.id },
