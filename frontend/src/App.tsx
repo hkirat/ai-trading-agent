@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import PerformanceChart from "./components/PerformanceChart";
 import RecentInvocations from "./components/RecentInvocations";
 import Navbar from "./components/Navbar";
-
-const BACKEND_URL = "https://api.ai-trading.100xdevs.com";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Leaderboard from "./pages/Leaderboard";
+import Blog from "./pages/Blog";
+import { BACKEND_URL } from "./config";
 
 function ChartSkeleton() {
   return (
@@ -76,34 +78,45 @@ export default function App() {
   const loading = !performanceData || !invocationsData;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-linear-to-b from-gray-50 to-gray-100 text-gray-900 font-[system-ui]">
-      <Navbar />
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row overflow-y-auto md:overflow-hidden">
-        {loading ? (
-          <>
-            <ChartSkeleton />
-            <ListSkeleton />
-          </>
-        ) : (
-          <>
-            <PerformanceChart data={performanceData} />
-            <RecentInvocations data={invocationsData} />
-          </>
+    <BrowserRouter>
+      <div className="h-screen flex flex-col overflow-hidden bg-linear-to-b from-gray-50 to-gray-100 text-gray-900">
+        <Navbar />
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <div className="flex min-h-0 flex-1 flex-col md:flex-row overflow-y-auto md:overflow-hidden">
+                {loading ? (
+                  <>
+                    <ChartSkeleton />
+                    <ListSkeleton />
+                  </>
+                ) : (
+                  <>
+                    <PerformanceChart data={performanceData} />
+                    <RecentInvocations data={invocationsData} />
+                  </>
+                )}
+              </div>
+            }
+          />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/blog" element={<Blog />} />
+        </Routes>
+        {lastUpdated && (
+          <div className="py-2 text-sm text-center text-gray-500 border-t-2 border-black">
+            Last updated:{" "}
+            <span className="font-medium text-gray-700">
+              {new Date(lastUpdated).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
         )}
       </div>
-      {lastUpdated && (
-        <div className="py-2 text-sm text-center text-gray-500 border-t-2 border-black">
-          Last updated:{" "}
-          <span className="font-medium text-gray-700">
-            {new Date(lastUpdated).toLocaleString("en-US", {
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
-      )}
-    </div>
+    </BrowserRouter>
   );
 }

@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+/* Global font: Plus Jakarta Sans for sans text. Mono retains Tailwind's font-mono usage. */
+:root {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+}
